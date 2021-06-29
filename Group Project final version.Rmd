@@ -1,0 +1,331 @@
+---
+title: "Group Project"
+output: 
+  html_document:
+    code_folding: hide
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+author: "Emma Govan, Susan Maria Edgeworth, Sujit Krishnankutty, Brian Thomas Webb"
+---
+### Project instructions {.tabset}
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+#### Project Statment/outline
+The objective of this project is to explore the Covid AMT dataset and pose some questions around the data.  Questions included are: 
+
+- How many confirmed Covid 19 cases required hospitalization.
+- The number of healthcare workers with Covid 19 vs number of confirmed cases and during lockdown.
+- Overall confirmed cases in Ireland and growth of the virus over time, and during lockdown.
+- Total count of covid cases month by month.
+- Confirmed cases in Males and Females and the difference of case numbers between genders.
+- Hospitalized cases count for different age categories. Is there any specific age-category that are hospitalized?
+- Covid case-count for different age categories. Is there any specific pattern that could be found by segregating counts for different Age-categories?
+
+
+
+How we delegated workload and individual contributions to the ST661 project
+
+Emma;
+
+Formulated code for number of cases in healthcare workers within the polulation of total Covid cases and specified the lockdown in graphs, total covid cases over time including the lockdown.
+
+Susan;
+
+Wrote up the report of the project, analysed graphs and drew conclusions from the data. Formulated the code associated with the number of cases in Males and Females within the data set. Structured project into tabular form.
+
+Brian;
+
+Succesfully implemented and tested server collaboration so that we could all work from the same project. Shared base project project RMD. Project managed organizing regular team and individual meetings. Identified errors, troubleshooted and QC’ed intermediate and final project versions. Voluntered to present the insights and story.
+
+Sujit;
+
+Extracting insights by plotting Covid case-count for different Age-categories to check for any patterns. Exploring  Month-wise confirmed Covid-19 case count to evaluate the increase in number of cases which lead to the lockdown in the country. Identifying the Hospitalized Covid cases for different Age-categories and check for patterns. Involved in all stages of Data preparation i.e. Data cleaning, Data preview and Data description. Responsible for identifying the given Spatial co-ordinate in the Dataset.
+
+
+
+#### R Packages Required
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+library(ggplot2)
+library(DT)
+library(ggpubr)
+
+```
+
+#### Data Preparation {.tabset}
+This stage involves all the steps and procedures followed in getting the data analysis ready. Every steps has been explained and the codes have been given accordingly.
+
+To prepare our data set for analysis we take a subset of the data and clean it by omitting any NA values if present. We have also removed any unnecessary columns to ensure our data could be manipulated efficiently. A Code-hiding feature is also applied to our project for hiding code content.
+
+
+
+##### Data import 
+
+This stage involves importing the data from a given link to our Rstudio.
+```{r}
+d<- read.csv('http://opendata-geohive.hub.arcgis.com/datasets/d8eb52d56273413b84b0187a4e9117be_0.csv')
+
+d <- data.frame(d)
+
+colnames(d)
+```
+
+
+Checking the dimensions of our dataset.
+```{r}
+dim(d)
+```
+
+##### Data Cleaning
+We are removing the unwanted columns in our Dataset. For e.g. We have the spatial co-ordinate which is a single (X,Y) co-ordinate showing the dataset belongs to the country of Ireland. FID column which represents serial number.
+
+```{r, c}
+
+d$ï..X <- NULL
+d$Y <- NULL
+d$FID <- NULL
+d$X <- NULL
+
+
+```
+
+We have created new factor variable for the months in the data set so that we could analyze the Covid 19 cases month by month
+```{r}
+d$Month <-  months(as.Date(d$Date))
+d$Month <- as.factor(d$Month)
+
+
+```
+We have taken the specific subset of the data and have removed any columns with Null values (part of cleaning the data)
+```{r}
+hospital_data <- d[c(6,12:19)]
+
+hospital_data = na.omit(hospital_data)
+
+
+Age_data =  d[c(6,23:31)]
+
+Age_data = na.omit(Age_data)
+
+```
+
+This is the Structure of our data set after cleaning
+```{r}
+
+str(d)
+```
+
+##### Data Preview
+
+```{r}
+library(DT)
+datatable(head(d,50))
+
+```
+
+
+##### Data Description
+
+
+The Covid-19 Daily Statistics are updated on a daily basis, with the latest record reporting the counts recorded at 1pm the same day.
+
+```{r}
+
+
+
+```
+
+
+
+#### Exploratory Data Analysis
+
+##### Question 1 - How many confirmed Covid 19 cases required hospitalization?
+
+In our first graph we plotted confirmed covid cases vs hospitilised cases. We added a line to this which shows if approx 1 in 10 are hospitalised. The plot shows at the beginning alot of confirmed cases required hospitalisation, however this tappered off and less were hospitalised as time went on. This may be due to the implementation of lockdown and the reduction in case numbers over time(which is seen through our other graphs). Approx 10% of those with a confirmed covid case are hospitalized.
+```{r fig.width=8, fig.height=2.8}
+ggplot(na.omit(d), aes(x=CovidCasesConfirmed, y=HospitalisedCovidCases, col=Date)) +geom_point() +geom_abline(intercept=0, slope=1/10)+theme(legend.position="none")+theme(axis.text=element_text(size=10))
+
+propofhosp<-sum(d$HospitalisedCovidCases, na.rm=TRUE)/ sum(d$CovidCasesConfirmed, na.rm=TRUE)
+propofhosp
+
+```
+
+
+##### Question 2 - The number of healthcare workers with Covid 19 vs number of confirmed cases and during lockdown. What proportion of Healthcare workers had a confirmed case?
+
+Graph A shows the number of cases in healthcare workers increase dramatically at the beginning to which it then tapers off slightly at around the 8000 mark and then steadily increases. This again corralates with our previous graph where there was a similar descent, which again may display the effect of the lockdown on case numbers (ie lockdown is effective in reducing case numbers). Overall approx 25% of confirmed covid cases were of health care workers.
+
+Graph B shows how covid cases increased at the beginning of lockdown but then tapered off, decreasing dramatically as time progressed. Here the red portion of the graph shows cases in healthcare workers. It shows that healthcare workers made up the largest proportion of ases after the first lockdown and this correlates with the overall proportion of approx 25% which is a quarter of all cases.
+```{r fig.width=8, fig.height=2.8}
+plota<-ggplot(na.omit(d), aes(x=TotalConfirmedCovidCases, y=HealthcareWorkersCovidCases, col=Date)) +geom_point()+theme(legend.position="none", axis.text=element_text(size=8))+geom_abline(intercept = 0, slope=1/4)
+
+propofhwork<- sum(d$HealthcareWorkersCovidCases, na.rm=TRUE)/sum(d$CovidCasesConfirmed, na.rm=TRUE)
+propofhwork
+
+d$prophealth<-d$HealthcareWorkersCovidCases/d$TotalConfirmedCovidCases
+lockdown<-data.frame(Date=d$Date[11:78], CommunityTransmission=d$CommunityTransmission[11:78], CovidCasesConfirmed=d$CovidCasesConfirmed[11:78], prophealth=d$prophealth[11:78])
+
+plotb<-ggplot(na.omit(d), aes(x=Date, y=prophealth))+geom_point()+geom_point(data=na.omit(lockdown), aes(x=Date, y=prophealth), color='red', size=3)+labs(y="Prop cases in healthcare workers", x="Date ->")+theme(axis.ticks=element_blank(), axis.text=element_text(size=8))
+
+ggarrange(plota, plotb, labels=c("A", "B"), ncol=2, nrow=1, font.label=list(size=10))
+```
+
+##### Question 3 - Overall confirmed cases in Ireland and growth of the virus over time, and during lockdown. What did cases look like before lockdown and after lockdown?
+
+This graph shows overall cases of covid 19 over the timescale of the dataset. In this we see that cases rose at the beginning but then began to level off around the 25,000 mark. The red on this graph indicates the lockdown time, where the red line ends the case numbers stay steadily lower than the beginning of the lockdown. This shows that the lockdown worked effectively to reduce case numbers for a certain period of time. We then see as time moved on cases began to rise significantly.
+```{r fig.width=8, fig.height=2.8}
+ggplot(na.omit(d), aes(x=StatisticsProfileDate, y=CovidCasesConfirmed)) +geom_point() +geom_point(data=na.omit(lockdown), aes(x=Date, y=CovidCasesConfirmed), color='red', size=3)+labs(x="Date ->") +theme(axis.ticks=element_blank(), axis.text=element_text(size=10))
+```
+
+##### Question 4 - Did community transmission increase or decrease over the time period within the data set?
+
+This graph shows how community transmission was significantly higher at the beginning of the pandemic and then reduced as time went on. Community transmission saw a reduction throughout the pandemic.
+
+```{r fig.width=8, fig.height=2.8}
+ggplot(na.omit(d), aes(x=Date, y=CommunityTransmission))+geom_point() +geom_point(data=na.omit(lockdown), 
+             aes(x=Date,y=CommunityTransmission), 
+             color='red',
+             size=3)+theme(axis.text=element_text(size=10))
+
+```
+
+##### Question 5 - Total count of covid cases month by month. Which month saw the most Covid 19 cases?
+
+This graph shows a month by month case count from January to December. The graph shows that the highest number of cases were shown to be in October. There were a high number of cases in April after the initial lockdown was announced in March, showing that cases were higher in the intial stages of lockdown but then reduced significantly from May to September. Cases began to rise in September before the highest month in October, this prompted the second lockdown to begin at the end of this month. Cases have reduced from November to December.
+
+```{r fig.width=8, fig.height=2.8}
+months<-factor(d$Month, ordered = TRUE, levels = c("March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+Month_wise_count <-tapply(d$ConfirmedCovidCases,months, sum)
+
+barplot(Month_wise_count, main="Month-wise Covid-19 case count",xlab="Months",
+ylab="Covid-Count",col =coul,cex.names=0.5,las=3)
+
+```
+
+##### Question 6 - Confirmed cases in Males and Females, is there difference of case numbers between genders?
+
+The t.test shows the difference in cases between males and females. There is a higher average of females vs male, ie more females have contracted covid 19 compared to males. The p-value is significant
+
+
+```{r echo=FALSE}
+t.test(d$Male, d$Female) 
+```
+
+##### Question 7 - Hospitalized cases count for different age categories. Is there any specific age-category that are hospitalized?
+
+We can observe from the ggplot that we have higher case-count for the Age-category > 65 which is approximately 3000. For the remaining categories, the case count is less than 1000. 
+The risk for COVID-19 increases with age, with older adults at highest risk. For example, people in their 60s are at higher risk for the illness than people in their 50s.
+
+```{r fig.width=8, fig.height=2.8, warning=FALSE, message=FALSE, error=FALSE}
+
+# Using Lag-function as each value represents the case-count which is a cumulative sum of three days.
+hospital_data <- hospital_data %>% mutate(Hosp_Aged5 = HospitalisedAged5 - lag(HospitalisedAged5, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged5to14 = HospitalisedAged5to14 - lag(HospitalisedAged5to14, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged15to24 = HospitalisedAged15to24 - lag(HospitalisedAged15to24, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged25to34 = HospitalisedAged25to34 - lag(HospitalisedAged25to34, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged35to44 = HospitalisedAged35to44 - lag(HospitalisedAged35to44, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged45to54 = HospitalisedAged45to54 - lag(HospitalisedAged45to54, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged55to64 = HospitalisedAged55to64 - lag(HospitalisedAged55to64, 2))
+hospital_data <- hospital_data %>% mutate(Hosp_Aged65up = HospitalisedAged65up - lag(HospitalisedAged65up, 2))
+
+
+# Creating function for replacing the negative values with zero
+fun <- function(value){
+  value[value < 0] <- 0; 
+  value;}
+
+
+#Applying function to each value excluding the Statistical date
+hospital_data <- apply(hospital_data[-c(1)], 2, fun)
+
+hospital_data <- as.data.frame(hospital_data)
+
+DF1 <- data.frame(Hosp1_Aged5 = as.numeric(hospital_data$Hosp_Aged5)/2,
+                 Hosp2_Aged5to14 = as.numeric(hospital_data$Hosp_Aged5to14)/2,
+                 Hosp3_Aged15to24 =  as.numeric(hospital_data$Hosp_Aged15to24)/2,
+                 Hosp4_Aged25to34 =  as.numeric(hospital_data$Hosp_Aged25to34)/2,
+                 Hosp5_Aged35to44 =  as.numeric(hospital_data$Hosp_Aged35to44)/2,
+                 Hosp6_Aged45to54 =  as.numeric(hospital_data$Hosp_Aged45to54)/2,
+                 Hosp7_Aged55to64 =  as.numeric(hospital_data$Hosp_Aged55to64)/2,
+                 Hosp8_Aged65up =  as.numeric(hospital_data$Hosp_Aged65up)/2
+)
+
+
+DF_long = gather(DF1, key = "Hospitalized") %>%
+  group_by(Hospitalized) %>%
+  summarize(count = sum(value, na.rm = TRUE))
+
+
+gather(DF1, key = "Hospitalized",value = "count") %>%
+  ggplot(aes(x =Hospitalized, y = count, fill = Hospitalized)) +
+ geom_col() + theme(axis.text.x=element_text(size=7, angle=90))+ggtitle("Hospitalized count for different Age categories ")
+
+```
+
+##### Question 8 -  Covid case-count for different age categories. Is there any specific pattern that could be found by segregating counts for different Age-categories?
+
+We observe that the Age-category 15-65 are highly susceptible to illness like Covid-19. As compared to previous graph, the hospitalized cases were not on the higher side for the age category below 65. It indicates that younger population didn't need hospitalization or they maybe home-quarantined which cured their illness. Ultimately, we need to be safe and be careful regardless of the age factor as it can happen to anyone. 
+
+```{r fig.width=8, fig.height=2.8, error=FALSE, message=FALSE, warning=FALSE}
+
+Age_data <- Age_data %>% mutate(Categ2_Aged1to4 = Aged1to4 - lag(Aged1to4, 2))
+Age_data <- Age_data %>% mutate(Categ3_Aged5to14 = Aged5to14 - lag(Aged5to14, 2))
+Age_data <- Age_data %>% mutate(Categ4_Aged15to24 = Aged15to24 - lag(Aged15to24, 2))
+Age_data <- Age_data %>% mutate(Categ5_Aged25to34 = Aged25to34 - lag(Aged25to34, 2))
+Age_data <- Age_data %>% mutate(Categ6_Aged35to44 = Aged35to44 - lag(Aged35to44, 2))
+Age_data <- Age_data %>% mutate(Categ7_Aged45to54 = Aged45to54 - lag(Aged45to54, 2))
+Age_data <- Age_data %>% mutate(Categ8_Aged55to64 = Aged55to64 - lag(Aged55to64, 2))
+Age_data <- Age_data %>% mutate(Categ9_Aged65up = Aged65up - lag(Aged65up, 2))
+
+
+
+Age_data <- apply(Age_data[-c(1)], 2, fun)
+
+Age_data <- as.data.frame(Age_data)
+
+
+DF2 <-data.frame(Categ2_Aged1to4  =  as.numeric(Age_data$Categ2_Aged1to4)/2,  
+                 Categ3_Aged5to14   =  as.numeric(Age_data$Categ3_Aged5to14)/2 ,
+                 Categ4_Aged15to24  =  as.numeric(Age_data$Categ4_Aged15to24)/2,
+                 Categ5_Aged25to34  =  as.numeric(Age_data$Categ5_Aged25to34)/2,
+                 Categ6_Aged35to44  =  as.numeric(Age_data$Categ6_Aged35to44)/2,
+                 Categ7_Aged45to54  =  as.numeric(Age_data$Categ7_Aged45to54)/2,
+                 Categ8_Aged55to64  =  as.numeric(Age_data$Categ8_Aged55to64)/2,
+                 Categ9_Aged65up    =  as.numeric(Age_data$Categ9_Aged65up)/2 )
+
+
+
+DF_long2 = gather(DF2, key = "Aged") %>%
+  group_by(Aged) %>%
+  summarize(count = sum(value, na.rm = TRUE))
+
+
+gather(DF2, key = "Aged",value = "count") %>%
+  ggplot(aes(x =Aged, y = count, fill = Aged)) +
+  geom_col() + theme(axis.text.x=element_text(size=8, angle=90)) +ggtitle("Covid count for Different Ages ")
+
+
+```
+
+#### Summary
+
+This project has helped our understanding of the Covid 19 pandemic and we have gathered some interesting insights from the Covid AMT dataset in our analysis we have found that:
+
+- Approximately 10% of confirmed Covid 19 cases require hospitalisation.
+- Approximately 25% of confirmed Covid 19 cases are health care workers.
+- The lockdown that began in March was effective in the reduction of Covid 19 cases, as shown from our graphs.
+- Community transmission was elevated around March showing that this may have been responsible for the high level of cases that occurred when lockdown was announced and in the weeks following.
+- Community transmission decreased during and after lockdown.
+- The monthly confirmed Covid cases shows that October has seen the highest level of cases followed by April. There is a pattern in our graph that shows a rise and then a fall, followed by another rise and fall in cases, essentially this is showing the effectiveness of lockdowns illustrated in the fall in case numbers from May to August and November to December.
+- There is a higher average of females with Covid 19 compared to males.
+- The covid count for different Age-categories indicates for Age(15-65), the population are more susceptible to virus. The population for Age category > 65, that were hospitalized during the Covid-19 were much higher as compared to the remaining population.
+
+
+
